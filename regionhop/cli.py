@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import getpass
 import sys
 from pathlib import Path
 
@@ -53,14 +52,6 @@ def _ask(prompt: str, default: str | None = None, required: bool = False) -> str
         print("  (required)")
 
 
-def _ask_secret(prompt: str) -> str:
-    while True:
-        value = getpass.getpass(f"{prompt}: ")
-        if value:
-            return value
-        print("  (required)")
-
-
 def _setup_wizard(args) -> cfgmod.Config:
     if not sys.stdin.isatty():
         raise cfgmod.ConfigError(
@@ -96,10 +87,10 @@ def _setup_wizard(args) -> cfgmod.Config:
             "host": _ask("VM public IP / host", required=True),
             "user": _ask("SSH username", default="azureuser", required=True),
         }
-        if _ask("Auth method (key/password)", default="key").lower().startswith("p"):
-            options["password"] = _ask_secret("SSH password (stored in PLAINTEXT)")
-        else:
+        if _ask("Auth method (password/key)", default="password").lower().startswith("k"):
             options["key_path"] = _ask("SSH private key path", default="~/.ssh/id_ed25519")
+        else:
+            options["password"] = _ask("SSH password (stored in plaintext)", required=True)
 
     port = int(_ask("Local SOCKS5 port", default=str(cfgmod.DEFAULT_PORT)))
     cfg.regions[name] = cfgmod.RegionConfig(

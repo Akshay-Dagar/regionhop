@@ -4,12 +4,12 @@
 default_region = "br"
 
 # --- Bring your own VM (simplest; you manage the VM lifecycle) ---
+# 'provider' defaults to "manual", so you can omit it -- host + auth is enough.
 [regions.br]
-provider = "manual"
-host = "203.0.113.10"              # your VM's public IP
+host = "203.0.113.10"             # your VM's public IP
 user = "azureuser"                # SSH username
-key_path = "~/.ssh/id_ed25519_br" # private key (recommended)
-# password = "s3cr3t"             # OR a plaintext password instead of key_path (less secure)
+password = "s3cr3t"               # plaintext password (default auth)
+# key_path = "~/.ssh/id_ed25519"  # OR an SSH key instead (more secure)
 local_port = 1080                 # local SOCKS5 port
 
 # --- Azure-managed VM (regionhop creates/starts/stops it via the az CLI) ---

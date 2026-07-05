@@ -109,13 +109,12 @@ TOML, searched in this order: `--config`, `$REGIONHOP_CONFIG`, `./regionhop.toml
 ```toml
 default_region = "br"
 
-# Bring your own VM — you manage its lifecycle.
+# Bring your own VM — 'provider' defaults to "manual", so you can omit it.
 [regions.br]
-provider = "manual"
 host = "203.0.113.10"
 user = "azureuser"
-key_path = "~/.ssh/id_ed25519_br"   # recommended
-# password = "s3cr3t"               # OR plaintext password instead of a key (less secure)
+password = "s3cr3t"                 # default auth (stored in plaintext)
+# key_path = "~/.ssh/id_ed25519"    # OR an SSH key instead (more secure)
 local_port = 1080
 
 # Or let regionhop manage an Azure VM for you (needs `az login`).
@@ -131,17 +130,17 @@ local_port = 1081
 
 See [`examples/config.example.toml`](examples/config.example.toml).
 
-**Authentication.** Use `key_path` (recommended) **or** a `password`. Password
+**Authentication.** Use a `password` (the default) **or** a `key_path`. Password
 auth is fed to `ssh` through a throwaway `SSH_ASKPASS` helper (the password is
 passed by environment variable, never written to that helper file) — but it is
 stored **in plaintext in your config file**, so keep it private (on Linux/macOS
-regionhop restricts it to `600`). SSH keys are safer.
+regionhop restricts it to `600`). SSH keys are more secure.
 
 ## Providers
 
 | Provider | Manages VM lifecycle? | Needs |
 |---|---|---|
-| `manual` | No — you create/start/stop it | any VM + SSH key |
+| `manual` | No — you create/start/stop it | any VM + password or SSH key |
 | `azure` | Yes — create/start/deallocate/destroy | Azure CLI (`az login`) |
 
 Adding a provider is a single small class — see [CONTRIBUTING.md](CONTRIBUTING.md).

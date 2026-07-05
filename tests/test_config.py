@@ -62,16 +62,17 @@ def test_unknown_region_raises(tmp_path):
         cfg.region("br")
 
 
-def test_missing_provider_raises(tmp_path):
+def test_provider_defaults_to_manual(tmp_path):
     path = _write(
         tmp_path,
         """
         [regions.br]
         host = "x"
+        user = "y"
         """,
     )
-    with pytest.raises(cfgmod.ConfigError):
-        cfgmod.load(path)
+    cfg = cfgmod.load(path)
+    assert cfg.region("br").provider == "manual"
 
 
 def test_missing_file_raises():
@@ -129,4 +130,5 @@ def test_dumps_includes_password(tmp_path):
     cfgmod.save(cfg, path)
     text = path.read_text(encoding="utf-8")
     assert 'password = "p@ss"' in text
+    assert "provider" not in text  # manual is the default and is omitted
     assert cfgmod.load(path).region("br").options["password"] == "p@ss"

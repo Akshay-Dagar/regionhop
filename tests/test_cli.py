@@ -60,9 +60,9 @@ def test_setup_wizard_writes_config(tmp_path, monkeypatch):
 def test_setup_wizard_password(tmp_path, monkeypatch):
     import regionhop.cli as cli
 
-    answers = iter(["br", "manual", "1.2.3.4", "u", "password", "1080"])
+    # region, provider, host, user, auth-method, password, port
+    answers = iter(["br", "manual", "1.2.3.4", "u", "password", "s3cr3t", "1080"])
     monkeypatch.setattr("builtins.input", lambda *_a, **_k: next(answers))
-    monkeypatch.setattr("regionhop.cli.getpass.getpass", lambda *_a, **_k: "s3cr3t")
     monkeypatch.setattr(
         cli.sys, "stdin", type("FakeStdin", (), {"isatty": staticmethod(lambda: True)})()
     )

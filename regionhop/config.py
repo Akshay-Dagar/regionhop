@@ -88,9 +88,7 @@ def _parse(p: Path) -> Config:
     for name, raw in (data.get("regions") or {}).items():
         if not isinstance(raw, dict):
             raise ConfigError(f"[regions.{name}] must be a table.")
-        provider = raw.get("provider")
-        if not provider:
-            raise ConfigError(f"[regions.{name}] is missing 'provider'.")
+        provider = raw.get("provider", "manual")
         port = int(raw.get("local_port", DEFAULT_PORT))
         options = {k: v for k, v in raw.items() if k not in {"provider", "local_port"}}
         regions[name] = RegionConfig(name=name, provider=provider, options=options, local_port=port)
@@ -105,12 +103,12 @@ EXAMPLE_CONFIG = """\
 default_region = "br"
 
 # --- Bring your own VM (simplest; you manage the VM lifecycle) ---
+# 'provider' defaults to "manual", so you can omit it -- host + auth is enough.
 [regions.br]
-provider = "manual"
-host = "203.0.113.10"              # your VM's public IP
+host = "203.0.113.10"             # your VM's public IP
 user = "azureuser"                # SSH username
-key_path = "~/.ssh/id_ed25519_br" # private key (recommended)
-# password = "s3cr3t"             # OR a plaintext password instead of key_path (less secure)
+password = "s3cr3t"               # plaintext password (default auth)
+# key_path = "~/.ssh/id_ed25519"  # OR an SSH key instead (more secure)
 local_port = 1080                 # local SOCKS5 port
 
 # --- Azure-managed VM (regionhop creates/starts/stops it via the az CLI) ---
@@ -155,7 +153,8 @@ def dumps(cfg: Config) -> str:
         lines.append("")
     for name, region in cfg.regions.items():
         lines.append(f"[regions.{name}]")
-        lines.append(f'provider = "{region.provider}"')
+        if region.provider != "manual":
+            lines.append(f'provider = "{region.provider}"')
         for key, value in region.options.items():
             lines.append(f"{key} = {_toml_value(value)}")
         lines.append(f"local_port = {region.local_port}")
