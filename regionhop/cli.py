@@ -65,36 +65,18 @@ def _setup_wizard(args) -> cfgmod.Config:
 
     print("regionhop setup\n")
     name = _ask("Region name", default="br")
-    provider = _ask("Provider (manual/azure)", default="manual").lower()
-
-    if provider == "azure":
-        rg = _ask("Azure resource group", default=f"regionhop-{name}", required=True)
-        vm = _ask("VM name", default=f"rh-{name}", required=True)
-        loc = _ask("Azure location (e.g. brazilsouth)", required=True)
-        options = {
-            "resource_group": rg,
-            "name": vm,
-            "location": loc,
-            "user": _ask("Admin username", default="azureuser"),
-            "size": _ask("VM size", default="Standard_B1s"),
-            "image": _ask("Image", default="Ubuntu2204"),
-            "ssh_public_key_path": _ask("SSH public key path", default="~/.ssh/id_ed25519.pub"),
-            "key_path": _ask("SSH private key path", default="~/.ssh/id_ed25519"),
-        }
+    options = {
+        "host": _ask("VM public IP / host", required=True),
+        "user": _ask("SSH username", default="azureuser", required=True),
+    }
+    if _ask("Auth method (password/key)", default="password").lower().startswith("k"):
+        options["key_path"] = _ask("SSH private key path", default="~/.ssh/id_ed25519")
     else:
-        provider = "manual"
-        options = {
-            "host": _ask("VM public IP / host", required=True),
-            "user": _ask("SSH username", default="azureuser", required=True),
-        }
-        if _ask("Auth method (password/key)", default="password").lower().startswith("k"):
-            options["key_path"] = _ask("SSH private key path", default="~/.ssh/id_ed25519")
-        else:
-            options["password"] = _ask("SSH password (stored in plaintext)", required=True)
+        options["password"] = _ask("SSH password", required=True)
 
     port = int(_ask("Local SOCKS5 port", default=str(cfgmod.DEFAULT_PORT)))
     cfg.regions[name] = cfgmod.RegionConfig(
-        name=name, provider=provider, options=options, local_port=port
+        name=name, provider="manual", options=options, local_port=port
     )
     if not cfg.default_region or _ask(
         f"Make '{name}' the default region? (Y/n)", default="Y"
