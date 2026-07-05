@@ -1,0 +1,68 @@
+<svg width="1200" height="340" viewBox="0 0 1200 340" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="regionhop — watch YouTube, X and 1000+ sites from any region">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#151d33"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#38bdf8"/>
+      <stop offset="0.5" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#f472b6"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.82" cy="0.4" r="0.6">
+      <stop stop-color="#a78bfa" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="340" rx="26" fill="url(#bg)"/>
+  <rect width="1200" height="340" rx="26" fill="url(#glow)"/>
+
+  <!-- globe -->
+  <g transform="translate(980,170)" opacity="0.9">
+    <circle r="120" fill="none" stroke="#2b3556" stroke-width="1.5"/>
+    <ellipse rx="120" ry="46" fill="none" stroke="#2b3556" stroke-width="1.5"/>
+    <ellipse rx="120" ry="90" fill="none" stroke="#2b3556" stroke-width="1.5"/>
+    <ellipse rx="46" ry="120" fill="none" stroke="#2b3556" stroke-width="1.5"/>
+    <line x1="-120" y1="0" x2="120" y2="0" stroke="#2b3556" stroke-width="1.5"/>
+  </g>
+
+  <!-- region routes converging to the player -->
+  <g stroke="url(#accent)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="1 9" opacity="0.95">
+    <path d="M862 92 L980 170"/>
+    <path d="M1082 120 L980 170"/>
+    <path d="M902 262 L980 170"/>
+  </g>
+  <g fill="#38bdf8">
+    <circle cx="862" cy="92" r="7"/>
+    <circle cx="1082" cy="120" r="7" fill="#a78bfa"/>
+    <circle cx="902" cy="262" r="7" fill="#f472b6"/>
+  </g>
+
+  <!-- play button (you) -->
+  <g transform="translate(940,130)">
+    <rect x="-2" y="-2" width="84" height="84" rx="22" fill="url(#accent)" opacity="0.45" filter="url(#soft)"/>
+    <rect width="80" height="80" rx="20" fill="url(#accent)"/>
+    <path d="M32 24 L58 40 L32 56 Z" fill="#0b1020"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="72" y="150" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="84" font-weight="800" letter-spacing="-2" fill="#ffffff">region<tspan fill="url(#accent)">hop</tspan></text>
+
+  <!-- pill -->
+  <g transform="translate(74,168)">
+    <rect width="182" height="30" rx="15" fill="#1b2440" stroke="#a78bfa" stroke-opacity="0.45"/>
+    <text x="17" y="20" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="700" letter-spacing="1.5" fill="#c7d2fe">&#9654; 1000+ SITES</text>
+  </g>
+
+  <!-- tagline -->
+  <text x="74" y="238" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="25" font-weight="600">
+    <tspan fill="#ffffff" font-weight="800">YouTube</tspan><tspan fill="#aab3d6">, X &amp; regional livestreams — from anywhere</tspan>
+  </text>
+
+  <!-- sub -->
+  <text x="74" y="276" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" fill="#7c86ab">Self-hosted &#183; routes through your own regional cloud VMs &#183; SSH SOCKS5</text>
+</svg>

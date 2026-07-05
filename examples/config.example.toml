@@ -1,0 +1,26 @@
+# regionhop configuration.
+# Copy to  ~/.config/regionhop/config.toml  (or ./regionhop.toml) and edit.
+
+default_region = "br"
+
+# --- Bring your own VM (simplest; you manage the VM lifecycle) ---
+[regions.br]
+provider = "manual"
+host = "203.0.113.10"              # your VM's public IP
+user = "azureuser"                # SSH username
+key_path = "~/.ssh/id_ed25519_br" # private key for passwordless SSH
+local_port = 1080                 # local SOCKS5 port
+
+# --- Azure-managed VM (regionhop creates/starts/stops it via the az CLI) ---
+# Requires the Azure CLI (`az login`).
+# [regions.jp]
+# provider = "azure"
+# resource_group = "regionhop-jp"
+# name = "rh-jp"
+# location = "japaneast"
+# user = "azureuser"
+# size = "Standard_B1s"
+# image = "Ubuntu2204"
+# ssh_public_key_path = "~/.ssh/id_ed25519_br.pub"
+# key_path = "~/.ssh/id_ed25519_br"
+# local_port = 1081
