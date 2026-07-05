@@ -15,6 +15,7 @@ class VMInfo:
     host: str
     user: str
     key_path: str | None = None
+    password: str | None = None
 
 
 class Provider(ABC):

@@ -38,3 +38,14 @@ def test_manual_requires_host_user():
     except ProviderError:
         return
     raise AssertionError("expected ProviderError for missing host/user")
+
+
+def test_manual_passes_password():
+    region = RegionConfig(
+        name="br",
+        provider="manual",
+        options={"host": "h", "user": "u", "password": "pw"},
+    )
+    vm = get_provider(region).ensure_running()
+    assert vm.password == "pw"
+    assert vm.key_path is None

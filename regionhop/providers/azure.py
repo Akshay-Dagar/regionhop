@@ -25,6 +25,7 @@ class AzureProvider(Provider):
         image: str = "Ubuntu2204",
         ssh_public_key_path: str | None = None,
         key_path: str | None = None,
+        password: str | None = None,
     ):
         if not (resource_group and name and location):
             raise ProviderError(
@@ -38,6 +39,7 @@ class AzureProvider(Provider):
         self.image = image
         self.pub = ssh_public_key_path
         self.key_path = key_path
+        self.password = password
 
     @classmethod
     def from_options(cls, options: dict) -> AzureProvider:
@@ -50,6 +52,7 @@ class AzureProvider(Provider):
             image=options.get("image", "Ubuntu2204"),
             ssh_public_key_path=options.get("ssh_public_key_path"),
             key_path=options.get("key_path"),
+            password=options.get("password"),
         )
 
     def _az(self, *args: str, check: bool = True) -> subprocess.CompletedProcess:
@@ -87,7 +90,7 @@ class AzureProvider(Provider):
         ip = self._public_ip()
         if not ip:
             raise ProviderError("Could not determine the VM's public IP.")
-        return VMInfo(ip, self.user, self.key_path)
+        return VMInfo(ip, self.user, self.key_path, self.password)
 
     def deallocate(self) -> None:
         self._az("vm", "deallocate", "-g", self.rg, "-n", self.vm)

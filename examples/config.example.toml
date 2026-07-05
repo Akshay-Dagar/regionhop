@@ -8,7 +8,8 @@ default_region = "br"
 provider = "manual"
 host = "203.0.113.10"              # your VM's public IP
 user = "azureuser"                # SSH username
-key_path = "~/.ssh/id_ed25519_br" # private key for passwordless SSH
+key_path = "~/.ssh/id_ed25519_br" # private key (recommended)
+# password = "s3cr3t"             # OR a plaintext password instead of key_path (less secure)
 local_port = 1080                 # local SOCKS5 port
 
 # --- Azure-managed VM (regionhop creates/starts/stops it via the az CLI) ---

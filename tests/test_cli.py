@@ -35,8 +35,8 @@ def test_setup_wizard_writes_config(tmp_path, monkeypatch):
     import regionhop.cli as cli
     import regionhop.config as cfgmod
 
-    # answers: region, provider, host, user, key, port
-    answers = iter(["br", "manual", "203.0.113.10", "azureuser", "~/.ssh/k", "1080"])
+    # answers: region, provider, host, user, auth-method, key, port
+    answers = iter(["br", "manual", "203.0.113.10", "azureuser", "key", "~/.ssh/k", "1080"])
     monkeypatch.setattr("builtins.input", lambda *_a, **_k: next(answers))
     monkeypatch.setattr(
         cli.sys, "stdin", type("FakeStdin", (), {"isatty": staticmethod(lambda: True)})()
@@ -51,7 +51,28 @@ def test_setup_wizard_writes_config(tmp_path, monkeypatch):
     region = cfg.region("br")
     assert region.provider == "manual"
     assert region.options["host"] == "203.0.113.10"
+    assert region.options["key_path"] == "~/.ssh/k"
     assert region.local_port == 1080
     # and it round-trips from disk
     assert cfgmod.load(path).region("br").options["user"] == "azureuser"
+
+
+def test_setup_wizard_password(tmp_path, monkeypatch):
+    import regionhop.cli as cli
+
+    answers = iter(["br", "manual", "1.2.3.4", "u", "password", "1080"])
+    monkeypatch.setattr("builtins.input", lambda *_a, **_k: next(answers))
+    monkeypatch.setattr("regionhop.cli.getpass.getpass", lambda *_a, **_k: "s3cr3t")
+    monkeypatch.setattr(
+        cli.sys, "stdin", type("FakeStdin", (), {"isatty": staticmethod(lambda: True)})()
+    )
+
+    path = tmp_path / "regionhop.toml"
+    args = type("Args", (), {"config": str(path)})()
+    cfg = cli._setup_wizard(args)
+
+    region = cfg.region("br")
+    assert region.options["password"] == "s3cr3t"
+    assert "key_path" not in region.options
+
 

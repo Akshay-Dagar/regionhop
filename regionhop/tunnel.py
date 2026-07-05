@@ -11,6 +11,7 @@ import os
 import signal
 import socket
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +43,7 @@ class Tunnel:
     user: str
     key_path: str | None = None
     port: int = 1080
+    password: str | None = None
 
     @property
     def _pidfile(self) -> Path:
@@ -50,11 +52,16 @@ class Tunnel:
     def is_up(self) -> bool:
         return port_open(self.port)
 
-    def start(self, wait: float = 15.0) -> None:
-        if self.is_up():
-            return
+    def _build_command(self) -> list[str]:
         cmd = ["ssh"]
-        if self.key_path:
+        if self.password:
+            # Force password auth; the password is supplied via SSH_ASKPASS.
+            cmd += [
+                "-o", "PreferredAuthentications=password,keyboard-interactive",
+                "-o", "PubkeyAuthentication=no",
+                "-o", "NumberOfPasswordPrompts=1",
+            ]
+        elif self.key_path:
             cmd += ["-i", os.path.expanduser(self.key_path)]
         cmd += [
             "-o", "StrictHostKeyChecking=accept-new",
@@ -64,6 +71,11 @@ class Tunnel:
             "-N", "-C", "-D", str(self.port),
             f"{self.user}@{self.host}",
         ]
+        return cmd
+
+    def start(self, wait: float = 15.0) -> None:
+        if self.is_up():
+            return
 
         kwargs: dict = {
             "stdin": subprocess.DEVNULL,
@@ -77,23 +89,34 @@ class Tunnel:
         else:
             kwargs["start_new_session"] = True
 
-        proc = subprocess.Popen(cmd, **kwargs)
-        self._pidfile.write_text(str(proc.pid), encoding="utf-8")
+        askpass: str | None = None
+        if self.password:
+            askpass, kwargs["env"] = _make_askpass(self.password)
 
-        deadline = time.time() + wait
-        while time.time() < deadline:
-            if self.is_up():
-                return
-            if proc.poll() is not None:
-                self._pidfile.unlink(missing_ok=True)
-                raise TunnelError(
-                    f"ssh exited early (code {proc.returncode}). "
-                    "Check the host, user, and key."
-                )
-            time.sleep(0.4)
-        raise TunnelError(
-            f"Tunnel to {self.host} did not open port {self.port} within {wait:.0f}s."
-        )
+        try:
+            proc = subprocess.Popen(self._build_command(), **kwargs)
+            self._pidfile.write_text(str(proc.pid), encoding="utf-8")
+
+            deadline = time.time() + wait
+            while time.time() < deadline:
+                if self.is_up():
+                    return
+                if proc.poll() is not None:
+                    self._pidfile.unlink(missing_ok=True)
+                    hint = "password" if self.password else "host, user, and key"
+                    raise TunnelError(
+                        f"ssh exited early (code {proc.returncode}). Check the {hint}."
+                    )
+                time.sleep(0.4)
+            raise TunnelError(
+                f"Tunnel to {self.host} did not open port {self.port} within {wait:.0f}s."
+            )
+        finally:
+            if askpass:
+                try:
+                    os.remove(askpass)
+                except OSError:
+                    pass
 
     def stop(self) -> bool:
         pid: int | None = None
@@ -106,6 +129,30 @@ class Tunnel:
         if pid is None:
             return False
         return _kill(pid)
+
+
+def _make_askpass(password: str) -> tuple[str, dict]:
+    """Create a throwaway SSH_ASKPASS helper that echoes the password.
+
+    The password is passed to the helper via an environment variable, so it is
+    never written to disk. Returns (askpass_path, child_env).
+    """
+    env = dict(os.environ)
+    env["SSH_ASKPASS_REQUIRE"] = "force"
+    env.setdefault("DISPLAY", "regionhop:0")
+    env["REGIONHOP_ASKPASS_PW"] = password
+
+    if os.name == "nt":
+        fd, path = tempfile.mkstemp(prefix="rh-askpass-", suffix=".cmd")
+        os.write(fd, b"@echo off\r\necho %REGIONHOP_ASKPASS_PW%\r\n")
+        os.close(fd)
+    else:
+        fd, path = tempfile.mkstemp(prefix="rh-askpass-", suffix=".sh")
+        os.write(fd, b'#!/bin/sh\nprintf "%s\\n" "$REGIONHOP_ASKPASS_PW"\n')
+        os.close(fd)
+        os.chmod(path, 0o700)
+    env["SSH_ASKPASS"] = path
+    return path, env
 
 
 def _kill(pid: int) -> bool:

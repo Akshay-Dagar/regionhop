@@ -114,3 +114,19 @@ def test_find_config(tmp_path, monkeypatch):
     found = cfgmod.find_config()
     assert found is not None
     assert found.name == "regionhop.toml"
+
+
+def test_dumps_includes_password(tmp_path):
+    cfg = cfgmod.Config(
+        regions={
+            "br": cfgmod.RegionConfig(
+                "br", "manual", {"host": "h", "user": "u", "password": "p@ss"}, 1080
+            )
+        },
+        default_region="br",
+    )
+    path = tmp_path / "regionhop.toml"
+    cfgmod.save(cfg, path)
+    text = path.read_text(encoding="utf-8")
+    assert 'password = "p@ss"' in text
+    assert cfgmod.load(path).region("br").options["password"] == "p@ss"

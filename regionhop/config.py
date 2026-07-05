@@ -109,7 +109,8 @@ default_region = "br"
 provider = "manual"
 host = "203.0.113.10"              # your VM's public IP
 user = "azureuser"                # SSH username
-key_path = "~/.ssh/id_ed25519_br" # private key for passwordless SSH
+key_path = "~/.ssh/id_ed25519_br" # private key (recommended)
+# password = "s3cr3t"             # OR a plaintext password instead of key_path (less secure)
 local_port = 1080                 # local SOCKS5 port
 
 # --- Azure-managed VM (regionhop creates/starts/stops it via the az CLI) ---
@@ -163,8 +164,17 @@ def dumps(cfg: Config) -> str:
 
 
 def save(cfg: Config, path: str | os.PathLike | None = None) -> Path:
-    """Write a Config to disk as TOML and return the path."""
+    """Write a Config to disk as TOML and return the path.
+
+    The file may contain secrets (e.g. an SSH password), so on POSIX we restrict
+    it to owner-only permissions.
+    """
     target = Path(path) if path else (cfg.path or default_config_path())
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(dumps(cfg), encoding="utf-8")
+    if os.name != "nt":
+        try:
+            os.chmod(target, 0o600)
+        except OSError:
+            pass
     return target

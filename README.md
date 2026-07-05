@@ -114,7 +114,8 @@ default_region = "br"
 provider = "manual"
 host = "203.0.113.10"
 user = "azureuser"
-key_path = "~/.ssh/id_ed25519_br"
+key_path = "~/.ssh/id_ed25519_br"   # recommended
+# password = "s3cr3t"               # OR plaintext password instead of a key (less secure)
 local_port = 1080
 
 # Or let regionhop manage an Azure VM for you (needs `az login`).
@@ -129,6 +130,12 @@ local_port = 1081
 ```
 
 See [`examples/config.example.toml`](examples/config.example.toml).
+
+**Authentication.** Use `key_path` (recommended) **or** a `password`. Password
+auth is fed to `ssh` through a throwaway `SSH_ASKPASS` helper (the password is
+passed by environment variable, never written to that helper file) — but it is
+stored **in plaintext in your config file**, so keep it private (on Linux/macOS
+regionhop restricts it to `600`). SSH keys are safer.
 
 ## Providers
 

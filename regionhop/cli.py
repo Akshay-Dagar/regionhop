@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import sys
 from pathlib import Path
 
@@ -17,7 +18,13 @@ from .tunnel import Tunnel, TunnelError
 def _ensure_up(region: cfgmod.RegionConfig, verify: bool = True) -> tuple:
     provider = get_provider(region)
     vm = provider.ensure_running()
-    tun = Tunnel(host=vm.host, user=vm.user, key_path=vm.key_path, port=region.local_port)
+    tun = Tunnel(
+        host=vm.host,
+        user=vm.user,
+        key_path=vm.key_path,
+        port=region.local_port,
+        password=vm.password,
+    )
     if tun.is_up():
         print(f"Tunnel already up on 127.0.0.1:{tun.port}")
     else:
@@ -43,6 +50,14 @@ def _ask(prompt: str, default: str | None = None, required: bool = False) -> str
             return value
         if not required:
             return ""
+        print("  (required)")
+
+
+def _ask_secret(prompt: str) -> str:
+    while True:
+        value = getpass.getpass(f"{prompt}: ")
+        if value:
+            return value
         print("  (required)")
 
 
@@ -80,8 +95,11 @@ def _setup_wizard(args) -> cfgmod.Config:
         options = {
             "host": _ask("VM public IP / host", required=True),
             "user": _ask("SSH username", default="azureuser", required=True),
-            "key_path": _ask("SSH private key path", default="~/.ssh/id_ed25519"),
         }
+        if _ask("Auth method (key/password)", default="key").lower().startswith("p"):
+            options["password"] = _ask_secret("SSH password (stored in PLAINTEXT)")
+        else:
+            options["key_path"] = _ask("SSH private key path", default="~/.ssh/id_ed25519")
 
     port = int(_ask("Local SOCKS5 port", default=str(cfgmod.DEFAULT_PORT)))
     cfg.regions[name] = cfgmod.RegionConfig(
@@ -94,6 +112,11 @@ def _setup_wizard(args) -> cfgmod.Config:
 
     saved = cfgmod.save(cfg, path)
     print(f"\nSaved config to {saved}")
+    if options.get("password"):
+        print(
+            "WARNING: the SSH password is stored in PLAINTEXT there -- keep the "
+            "file private; SSH keys are safer."
+        )
     return cfg
 
 
@@ -143,10 +166,15 @@ def cmd_up(args, _cfg) -> int:
 
 def cmd_watch(args, _cfg) -> int:
     if args.host:
+        opts = {"host": args.host, "user": args.user or "azureuser"}
+        if args.password:
+            opts["password"] = args.password
+        if args.key:
+            opts["key_path"] = args.key
         region = cfgmod.RegionConfig(
             name="adhoc",
             provider="manual",
-            options={"host": args.host, "user": args.user or "azureuser", "key_path": args.key},
+            options=opts,
             local_port=args.port or cfgmod.DEFAULT_PORT,
         )
     else:
@@ -228,6 +256,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_watch.add_argument("--host", help="ad-hoc VM host/IP (run without a config file)")
     p_watch.add_argument("--user", help="ad-hoc SSH username (with --host)")
     p_watch.add_argument("--key", help="ad-hoc SSH private key path (with --host)")
+    p_watch.add_argument("--password", help="ad-hoc SSH password (with --host; prefer --key)")
     p_watch.add_argument("--port", type=int, help="local SOCKS5 port (ad-hoc mode)")
     p_watch.set_defaults(func=cmd_watch, needs_config=False)
 
