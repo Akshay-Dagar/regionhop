@@ -77,3 +77,40 @@ def test_missing_provider_raises(tmp_path):
 def test_missing_file_raises():
     with pytest.raises(cfgmod.ConfigError):
         cfgmod.load("/nonexistent/regionhop.toml")
+
+
+def test_dumps_and_reload_roundtrip(tmp_path):
+    cfg = cfgmod.Config(
+        regions={
+            "br": cfgmod.RegionConfig(
+                "br",
+                "manual",
+                {"host": "203.0.113.10", "user": "azureuser", "key_path": "~/.ssh/k"},
+                1080,
+            )
+        },
+        default_region="br",
+    )
+    path = tmp_path / "regionhop.toml"
+    cfgmod.save(cfg, path)
+
+    reloaded = cfgmod.load(path)
+    region = reloaded.region("br")
+    assert reloaded.default_region == "br"
+    assert region.provider == "manual"
+    assert region.options["host"] == "203.0.113.10"
+    assert region.local_port == 1080
+
+
+def test_find_config(tmp_path, monkeypatch):
+    monkeypatch.delenv("REGIONHOP_CONFIG", raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg"))
+    monkeypatch.chdir(tmp_path)
+
+    assert cfgmod.find_config() is None
+    (tmp_path / "regionhop.toml").write_text(
+        '[regions.br]\nprovider = "manual"\nhost = "x"\nuser = "y"\n', encoding="utf-8"
+    )
+    found = cfgmod.find_config()
+    assert found is not None
+    assert found.name == "regionhop.toml"

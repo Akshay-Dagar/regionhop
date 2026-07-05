@@ -67,9 +67,17 @@ def load(path: str | os.PathLike | None = None) -> Config:
         if p and p.is_file():
             return _parse(p)
     raise ConfigError(
-        "No config file found. Run 'regionhop init' to create one, "
+        "No config file found. Run 'regionhop setup' (or 'init'), "
         "or point REGIONHOP_CONFIG at your file."
     )
+
+
+def find_config() -> Path | None:
+    """Return the first existing config file in the search path, or None."""
+    for p in _search_paths():
+        if p and p.is_file():
+            return p
+    return None
 
 
 def _parse(p: Path) -> Config:
@@ -126,4 +134,37 @@ def init(path: str | os.PathLike | None = None) -> Path:
     if target.exists():
         raise ConfigError(f"Config already exists at {target}")
     target.write_text(EXAMPLE_CONFIG, encoding="utf-8")
+    return target
+
+
+def _toml_value(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def dumps(cfg: Config) -> str:
+    """Serialize a Config back into TOML text."""
+    lines: list[str] = []
+    if cfg.default_region:
+        lines.append(f'default_region = "{cfg.default_region}"')
+        lines.append("")
+    for name, region in cfg.regions.items():
+        lines.append(f"[regions.{name}]")
+        lines.append(f'provider = "{region.provider}"')
+        for key, value in region.options.items():
+            lines.append(f"{key} = {_toml_value(value)}")
+        lines.append(f"local_port = {region.local_port}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def save(cfg: Config, path: str | os.PathLike | None = None) -> Path:
+    """Write a Config to disk as TOML and return the path."""
+    target = Path(path) if path else (cfg.path or default_config_path())
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(dumps(cfg), encoding="utf-8")
     return target

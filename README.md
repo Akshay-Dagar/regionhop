@@ -58,37 +58,45 @@ flowchart LR
 
 ```bash
 pip install regionhop            # from PyPI (once published)
-# or, from source:
-git clone https://github.com/OWNER/regionhop && cd regionhop
+# or with pipx (isolated):        pipx install regionhop
+# or from source:
+git clone https://github.com/Akshay-Dagar/regionhop && cd regionhop
 pip install -e .
 ```
 
 ## Quickstart
 
 ```bash
-# 1. Create a config file
-regionhop init
+pip install regionhop
 
-# 2. Edit it — point a region at your VM (see Configuration below)
-#    ~/.config/regionhop/config.toml
-
-# 3. Watch a region-locked stream in your browser
-regionhop watch --region br "https://www.youtube.com/live/XXXXXXXXXXX"
+# First run walks you through setup, then plays:
+regionhop watch "https://www.youtube.com/live/XXXXXXXXXXX"
 ```
 
-That's it. `regionhop` starts the tunnel if needed, confirms you're exiting the
-right country, and opens the stream.
+On first run, `regionhop` asks for your VM (host, SSH user, key), saves the
+config, brings up the tunnel, verifies the exit country, and opens the stream.
+After that, watching is a single command.
+
+**Zero-config one-liner** — pass the VM inline, no config file needed:
+
+```bash
+regionhop watch "https://youtu.be/XXXX" \
+  --host 203.0.113.10 --user azureuser --key ~/.ssh/id_ed25519
+```
+
+Re-run the wizard any time to add regions: `regionhop setup`.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `regionhop init [path]` | Write an example config file. |
+| `regionhop setup` | Interactive wizard — create/add a region (no hand-editing TOML). |
+| `regionhop watch <url> [-r region]` | Watch through a region. **First run auto-runs setup.** `--player browser` (default) or `yt-dlp`; ad-hoc `--host/--user/--key`. |
+| `regionhop up [-r region]` | Start (and verify) the tunnel for a region. |
+| `regionhop status [-r region]` | Show VM + tunnel status. |
+| `regionhop down [-r region]` | Stop the tunnel. Add `--deallocate` (stop billing) or `--destroy` (delete VM). |
 | `regionhop regions` | List configured regions. |
-| `regionhop up -r <region>` | Start (and verify) the tunnel for a region. |
-| `regionhop watch <url> -r <region>` | Watch through the region. `--player browser` (default) or `yt-dlp`. |
-| `regionhop status -r <region>` | Show VM + tunnel status. |
-| `regionhop down -r <region>` | Stop the tunnel. Add `--deallocate` (stop billing) or `--destroy` (delete VM). |
+| `regionhop init [path]` | Write an example config file to edit by hand. |
 
 Useful `watch` flags: `--player yt-dlp`, `--download`, `--quality 720`,
 `--cookies-from-browser chrome` (helps yt-dlp past datacenter bot checks).

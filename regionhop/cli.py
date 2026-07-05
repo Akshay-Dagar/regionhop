@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from . import __version__
 from . import config as cfgmod
@@ -32,6 +33,87 @@ def _ensure_up(region: cfgmod.RegionConfig, verify: bool = True) -> tuple:
     return provider, tun
 
 
+def _ask(prompt: str, default: str | None = None, required: bool = False) -> str:
+    hint = f" [{default}]" if default else ""
+    while True:
+        value = input(f"{prompt}{hint}: ").strip()
+        if not value and default is not None:
+            return default
+        if value:
+            return value
+        if not required:
+            return ""
+        print("  (required)")
+
+
+def _setup_wizard(args) -> cfgmod.Config:
+    if not sys.stdin.isatty():
+        raise cfgmod.ConfigError(
+            "Setup needs an interactive terminal. Run 'regionhop init' and edit the file."
+        )
+    path = Path(args.config) if args.config else cfgmod.default_config_path()
+    try:
+        cfg = cfgmod.load(str(path)) if path.exists() else cfgmod.Config()
+    except cfgmod.ConfigError:
+        cfg = cfgmod.Config()
+
+    print("regionhop setup\n")
+    name = _ask("Region name", default="br")
+    provider = _ask("Provider (manual/azure)", default="manual").lower()
+
+    if provider == "azure":
+        rg = _ask("Azure resource group", default=f"regionhop-{name}", required=True)
+        vm = _ask("VM name", default=f"rh-{name}", required=True)
+        loc = _ask("Azure location (e.g. brazilsouth)", required=True)
+        options = {
+            "resource_group": rg,
+            "name": vm,
+            "location": loc,
+            "user": _ask("Admin username", default="azureuser"),
+            "size": _ask("VM size", default="Standard_B1s"),
+            "image": _ask("Image", default="Ubuntu2204"),
+            "ssh_public_key_path": _ask("SSH public key path", default="~/.ssh/id_ed25519.pub"),
+            "key_path": _ask("SSH private key path", default="~/.ssh/id_ed25519"),
+        }
+    else:
+        provider = "manual"
+        options = {
+            "host": _ask("VM public IP / host", required=True),
+            "user": _ask("SSH username", default="azureuser", required=True),
+            "key_path": _ask("SSH private key path", default="~/.ssh/id_ed25519"),
+        }
+
+    port = int(_ask("Local SOCKS5 port", default=str(cfgmod.DEFAULT_PORT)))
+    cfg.regions[name] = cfgmod.RegionConfig(
+        name=name, provider=provider, options=options, local_port=port
+    )
+    if not cfg.default_region or _ask(
+        f"Make '{name}' the default region? (Y/n)", default="Y"
+    ).lower().startswith("y"):
+        cfg.default_region = name
+
+    saved = cfgmod.save(cfg, path)
+    print(f"\nSaved config to {saved}")
+    return cfg
+
+
+def _load_or_setup(args) -> cfgmod.Config:
+    try:
+        return cfgmod.load(args.config)
+    except cfgmod.ConfigError:
+        if args.config is None and cfgmod.find_config() is None and sys.stdin.isatty():
+            print("No config found \u2014 let's set up a region.\n")
+            _setup_wizard(args)
+            return cfgmod.load()
+        raise
+
+
+def cmd_setup(args, _cfg) -> int:
+    _setup_wizard(args)
+    print("\nReady. Watch something with:  regionhop watch <url>")
+    return 0
+
+
 def cmd_init(args, _cfg) -> int:
     try:
         path = cfgmod.init(args.path)
@@ -45,7 +127,7 @@ def cmd_init(args, _cfg) -> int:
 
 def cmd_regions(_args, cfg) -> int:
     if not cfg.regions:
-        print("No regions configured. Run 'regionhop init'.")
+        print("No regions configured. Run 'regionhop setup'.")
         return 0
     for name, region in cfg.regions.items():
         default = "  (default)" if name == cfg.default_region else ""
@@ -53,13 +135,23 @@ def cmd_regions(_args, cfg) -> int:
     return 0
 
 
-def cmd_up(args, cfg) -> int:
+def cmd_up(args, _cfg) -> int:
+    cfg = _load_or_setup(args)
     _ensure_up(cfg.region(args.region), verify=not args.no_verify)
     return 0
 
 
-def cmd_watch(args, cfg) -> int:
-    _, tun = _ensure_up(cfg.region(args.region), verify=not args.no_verify)
+def cmd_watch(args, _cfg) -> int:
+    if args.host:
+        region = cfgmod.RegionConfig(
+            name="adhoc",
+            provider="manual",
+            options={"host": args.host, "user": args.user or "azureuser", "key_path": args.key},
+            local_port=args.port or cfgmod.DEFAULT_PORT,
+        )
+    else:
+        region = _load_or_setup(args).region(args.region)
+    _, tun = _ensure_up(region, verify=not args.no_verify)
     if args.player == "browser":
         play_browser(args.url, tun.port)
         print("Opened in your browser through the regional proxy.")
@@ -109,13 +201,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_init.add_argument("path", nargs="?", help="where to write the config")
     p_init.set_defaults(func=cmd_init, needs_config=False)
 
+    p_setup = sub.add_parser("setup", help="interactive configuration wizard")
+    p_setup.set_defaults(func=cmd_setup, needs_config=False)
+
     p_regions = sub.add_parser("regions", help="list configured regions")
     p_regions.set_defaults(func=cmd_regions, needs_config=True)
 
     p_up = sub.add_parser("up", help="start the tunnel for a region")
     p_up.add_argument("-r", "--region")
     p_up.add_argument("--no-verify", action="store_true", help="skip the exit-country check")
-    p_up.set_defaults(func=cmd_up, needs_config=True)
+    p_up.set_defaults(func=cmd_up, needs_config=False)
 
     p_watch = sub.add_parser("watch", help="watch a video/livestream through a region")
     p_watch.add_argument("url")
@@ -130,7 +225,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--download", action="store_true", help="download instead of stream (yt-dlp)"
     )
     p_watch.add_argument("--no-verify", action="store_true")
-    p_watch.set_defaults(func=cmd_watch, needs_config=True)
+    p_watch.add_argument("--host", help="ad-hoc VM host/IP (run without a config file)")
+    p_watch.add_argument("--user", help="ad-hoc SSH username (with --host)")
+    p_watch.add_argument("--key", help="ad-hoc SSH private key path (with --host)")
+    p_watch.add_argument("--port", type=int, help="local SOCKS5 port (ad-hoc mode)")
+    p_watch.set_defaults(func=cmd_watch, needs_config=False)
 
     p_status = sub.add_parser("status", help="show region/VM/tunnel status")
     p_status.add_argument("-r", "--region")
